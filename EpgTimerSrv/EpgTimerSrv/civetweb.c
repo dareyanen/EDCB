@@ -512,12 +512,32 @@ typedef long off_t;
 
 #define ERRNO ((int)(GetLastError()))
 #define NO_SOCKLEN_T
+
+#if defined(OPENSSL_API_1_1)
+#if defined(_WIN64)
+#if !defined(SSL_LIB)
+#define SSL_LIB "libssl-1_1-x64.dll"
+#endif
+#if !defined(CRYPTO_LIB)
+#define CRYPTO_LIB "libcrypto-1_1-x64.dll"
+#endif
+#else
+#if !defined(SSL_LIB)
+#define SSL_LIB "libssl-1_1.dll"
+#endif
+#if !defined(CRYPTO_LIB)
+#define CRYPTO_LIB "libcrypto-1_1.dll"
+#endif
+#endif
+#else
 #if !defined(SSL_LIB)
 #define SSL_LIB "ssleay32.dll"
 #endif
 #if !defined(CRYPTO_LIB)
 #define CRYPTO_LIB "libeay32.dll"
 #endif
+#endif /* OPENSSL_API_1_1 */
+
 #define O_NONBLOCK (0)
 #if !defined(W_OK)
 #define W_OK (2) /* http://msdn.microsoft.com/en-us/library/1w06ktdy.aspx */
@@ -1760,16 +1780,20 @@ typedef struct x509 X509;
 #define SSL_VERIFY_PEER (1)
 #define SSL_VERIFY_FAIL_IF_NO_PEER_CERT (2)
 #define SSL_VERIFY_CLIENT_ONCE (4)
-#define SSL_OP_ALL ((long)(0x80000BFFUL))
-#define SSL_OP_NO_SSLv2 (0x01000000L)
-#define SSL_OP_NO_SSLv3 (0x02000000L)
-#define SSL_OP_NO_TLSv1 (0x04000000L)
-#define SSL_OP_NO_TLSv1_2 (0x08000000L)
-#define SSL_OP_NO_TLSv1_1 (0x10000000L)
-#define SSL_OP_SINGLE_DH_USE (0x00100000L)
-#define SSL_OP_CIPHER_SERVER_PREFERENCE (0x00400000L)
-#define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION (0x00010000L)
-#define SSL_OP_NO_COMPRESSION (0x00020000L)
+
+#define SSL_OP_ALL (0x80000BFFul)
+
+#define SSL_OP_NO_SSLv2 (0x01000000ul)
+#define SSL_OP_NO_SSLv3 (0x02000000ul)
+#define SSL_OP_NO_TLSv1 (0x04000000ul)
+#define SSL_OP_NO_TLSv1_2 (0x08000000ul)
+#define SSL_OP_NO_TLSv1_1 (0x10000000ul)
+#define SSL_OP_NO_TLSv1_3 (0x20000000ul)
+#define SSL_OP_SINGLE_DH_USE (0x00100000ul)
+#define SSL_OP_CIPHER_SERVER_PREFERENCE (0x00400000ul)
+#define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION (0x00010000ul)
+#define SSL_OP_NO_COMPRESSION (0x00020000ul)
+#define SSL_OP_NO_RENEGOTIATION (0x40000000ul)
 
 #define SSL_CB_HANDSHAKE_START (0x10)
 #define SSL_CB_HANDSHAKE_DONE (0x20)
@@ -15201,6 +15225,12 @@ ssl_get_protocol(int version_id)
 		ret |= SSL_OP_NO_TLSv1;
 	if (version_id > 3)
 		ret |= SSL_OP_NO_TLSv1_1;
+	if (version_id > 4)
+		ret |= SSL_OP_NO_TLSv1_2;
+#if defined(SSL_OP_NO_TLSv1_3)
+	if (version_id > 5)
+		ret |= SSL_OP_NO_TLSv1_3;
+#endif
 	return ret;
 }
 #else
@@ -15216,6 +15246,12 @@ ssl_get_protocol(int version_id)
 		ret |= SSL_OP_NO_TLSv1;
 	if (version_id > 3)
 		ret |= SSL_OP_NO_TLSv1_1;
+	if (version_id > 4)
+		ret |= SSL_OP_NO_TLSv1_2;
+#if defined(SSL_OP_NO_TLSv1_3)
+	if (version_id > 5)
+		ret |= SSL_OP_NO_TLSv1_3;
+#endif
 	return ret;
 }
 #endif /* OPENSSL_API_1_1 */
@@ -15357,6 +15393,11 @@ init_ssl_ctx_impl(struct mg_context *phys_ctx,
 	SSL_CTX_set_options(dom_ctx->ssl_ctx,
 	                    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
 	SSL_CTX_set_options(dom_ctx->ssl_ctx, SSL_OP_NO_COMPRESSION);
+
+#if defined(SSL_OP_NO_RENEGOTIATION)
+	SSL_CTX_set_options(dom_ctx->ssl_ctx, SSL_OP_NO_RENEGOTIATION);
+#endif
+
 #if !defined(NO_SSL_DL)
 	SSL_CTX_set_ecdh_auto(dom_ctx->ssl_ctx, 1);
 #endif /* NO_SSL_DL */
